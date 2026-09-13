@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { FormEvent, useState } from 'react'
 import { Chat } from '@/components/chat'
 import { CodeAtlasLogo } from '@/components/codeatlas-logo'
 import { Button } from '@/components/ui/button'
@@ -8,41 +8,100 @@ import { Input } from '@/components/ui/input'
 
 const API_URL = '/api/codeatlas'
 
+type GitHubRepository = {
+  id: number
+  name: string
+  full_name: string
+  html_url: string
+  clone_url: string
+  description: string | null
+  language: string | null
+  stargazers_count: number
+  forks_count: number
+  owner: {
+    login: string | null
+    avatar_url: string | null
+  }
+}
+
 const capabilities = [
   {
-    number: '01',
-    title: 'AST-aware understanding',
-    text: 'Structure code into meaningful chunks instead of treating the repository like plain text.',
+    title: 'Repository understanding',
+    description:
+      'Analyze source files, structure, imports, classes, functions, and documentation.',
   },
   {
-    number: '02',
     title: 'Hybrid retrieval',
-    text: 'Combine semantic and keyword retrieval to find the code that actually matters.',
+    description:
+      'Combine semantic and keyword retrieval before reranking the most relevant code.',
   },
   {
-    number: '03',
-    title: 'Reranked context',
-    text: 'Prioritize the most relevant code before sending context to the language model.',
-  },
-  {
-    number: '04',
     title: 'Grounded answers',
-    text: 'Generate answers from repository context with file and line-level citations.',
+    description:
+      'Answers are built from retrieved repository context with file and line references.',
+  },
+  {
+    title: 'Persistent conversations',
+    description:
+      'Keep repository context available while exploring the codebase through chat.',
   },
 ]
 
-export default function IndexPage() {
+export default function HomePage() {
   const [repoUrl, setRepoUrl] = useState('')
   const [repositoryId, setRepositoryId] = useState<number | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState('')
+
+  const [githubQuery, setGithubQuery] = useState('')
+  const [githubResults, setGithubResults] = useState<GitHubRepository[]>([])
+  const [githubOpen, setGithubOpen] = useState(false)
+  const [githubLoading, setGithubLoading] = useState(false)
+
   const [status, setStatus] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  async function connectRepository(event: React.FormEvent) {
-    event.preventDefault()
-    if (!repoUrl.trim()) return
+  async function searchGitHub() {
+    const query = githubQuery.trim()
 
-    setIsLoading(true)
+    if (!query) {
+      setGithubResults([])
+      return
+    }
+
+    setGithubLoading(true)
+    setError('')
+
+    try {
+      const response = await fetch(
+        `${API_URL}/github/search?q=${encodeURIComponent(query)}`,
+        { cache: 'no-store' },
+      )
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(data.error || 'GitHub search failed.')
+      }
+
+      setGithubResults(data.repositories || [])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'GitHub search failed.')
+      setGithubResults([])
+    } finally {
+      setGithubLoading(false)
+    }
+  }
+
+  async function analyzeRepository(url: string) {
+    const cleanUrl = url.trim()
+
+    if (!cleanUrl) {
+      setError('Enter a GitHub repository URL.')
+      return
+    }
+
+    setGithubOpen(false)
+    setLoading(true)
     setError('')
     setStatus('Starting repository analysis...')
 
@@ -50,277 +109,238 @@ export default function IndexPage() {
       const response = await fetch(`${API_URL}/repositories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repo_url: repoUrl.trim() }),
+        body: JSON.stringify({ repo_url: cleanUrl }),
       })
 
+      const data = await response.json().catch(() => ({}))
+
       if (!response.ok) {
-        throw new Error('Failed to start repository analysis')
+        throw new Error(
+          data.error ||
+            data.message ||
+            'Could not start repository analysis.',
+        )
       }
 
-      const data = await response.json()
+      if (!data.job_id) {
+        throw new Error('The backend did not return an ingestion job.')
+      }
+
       const jobId = data.job_id
 
-      setStatus('Cloning and indexing repository...')
-
       while (true) {
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        await new Promise((resolve) => setTimeout(resolve, 1000))
 
         const statusResponse = await fetch(
           `${API_URL}/repositories/status/${jobId}`,
+          { cache: 'no-store' },
         )
 
+        const job = await statusResponse.json().catch(() => ({}))
+
         if (!statusResponse.ok) {
-          throw new Error('Failed to check repository status')
+          throw new Error(
+            job.error || 'Could not read repository analysis status.',
+          )
         }
 
-        const statusData = await statusResponse.json()
+        if (job.message) {
+          setStatus(job.message)
+        } else if (job.phase) {
+          setStatus(
+            `${job.phase}${job.progress ? ` — ${job.progress}%` : ''}`,
+          )
+        }
 
-        if (statusData.status === 'completed') {
-          setRepositoryId(statusData.repository_id)
+        if (job.status === 'completed') {
+          setRepositoryId(job.repository_id)
           setStatus('')
           break
         }
 
-        if (statusData.status === 'failed') {
-          throw new Error(
-            statusData.error || 'Repository ingestion failed',
-          )
+        if (job.status === 'failed') {
+          throw new Error(job.error || 'Repository analysis failed.')
         }
-
-        setStatus('Cloning and indexing repository...')
       }
-    } catch (error) {
-      console.error(error)
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'Could not analyze repository.',
-      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong.')
       setStatus('')
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
+  }
+
+  async function connectRepository(event: FormEvent) {
+    event.preventDefault()
+    await analyzeRepository(repoUrl)
   }
 
   if (repositoryId) {
     return (
-      <div className="min-h-screen bg-[#070711] lg:ml-[260px]">
+      <main className="min-h-screen bg-[#09070f] text-white">
+        <header className="border-b border-white/10">
+          <div className="mx-auto flex h-16 max-w-7xl items-center px-6">
+            <CodeAtlasLogo />
+          </div>
+        </header>
+
         <Chat repositoryId={repositoryId} />
-      </div>
+      </main>
     )
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#070711] text-white lg:ml-[260px]">
+    <main className="min-h-screen overflow-hidden bg-[#09070f] text-white">
+      <header className="border-b border-white/10">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+          <CodeAtlasLogo />
 
-      {/* ambient background */}
-      <div className="pointer-events-none fixed inset-0 -z-0">
-        <div className="absolute left-[35%] top-[-20%] h-[650px] w-[650px] rounded-full bg-violet-700/[0.10] blur-[140px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] h-[500px] w-[500px] rounded-full bg-fuchsia-700/[0.06] blur-[130px]" />
-      </div>
-
-      {/* mobile brand */}
-      <div className="relative mx-auto flex max-w-7xl items-center px-6 pt-6 lg:hidden">
-        <div className="flex items-center gap-3">
-          <CodeAtlasLogo className="h-9 w-9" />
-          <div>
-            <div className="text-sm font-semibold">
-              Code<span className="text-violet-400">Atlas</span>
-            </div>
-            <div className="text-[9px] uppercase tracking-[0.18em] text-zinc-600">
-              AI Code Intelligence
-            </div>
-          </div>
+          <a
+            href="https://github.com/Mohammed18-19/CodeAtlas"
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-white/60 transition hover:text-white"
+          >
+            GitHub ↗
+          </a>
         </div>
-      </div>
+      </header>
 
-      {/* hero */}
-      <section className="relative mx-auto max-w-7xl px-6 pb-24 pt-24 md:pt-32">
-        <div className="mx-auto max-w-4xl text-center">
+      <section className="relative">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(139,92,246,0.18),transparent_42%)]" />
 
-          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-violet-400/15 bg-violet-500/[0.07] px-4 py-2 text-[11px] font-medium uppercase tracking-[0.18em] text-violet-300">
-            <span className="h-1.5 w-1.5 rounded-full bg-violet-400 shadow-[0_0_12px_rgba(167,139,250,.9)]" />
-            AI Codebase Intelligence
+        <div className="relative mx-auto max-w-5xl px-6 py-24 text-center md:py-32">
+          <div className="mx-auto mb-6 inline-flex items-center rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-xs text-white/60">
+            AI codebase intelligence
           </div>
 
-          <h1 className="text-5xl font-semibold leading-[1.02] tracking-[-0.045em] md:text-7xl lg:text-[82px]">
-            Understand your
-            <span className="block bg-gradient-to-r from-violet-300 via-purple-400 to-fuchsia-300 bg-clip-text pb-2 text-transparent">
-              codebase.
+          <h1 className="mx-auto max-w-4xl text-5xl font-semibold tracking-tight md:text-7xl">
+            Understand your codebase
+            <span className="block bg-gradient-to-r from-violet-300 via-purple-400 to-fuchsia-400 bg-clip-text text-transparent">
+              through conversation.
             </span>
           </h1>
 
-          <p className="mx-auto mt-7 max-w-2xl text-base leading-7 text-zinc-500 md:text-lg">
-            Explore architecture, implementation, dependencies and source code
-            with AI answers grounded in your repository.
+          <p className="mx-auto mt-7 max-w-2xl text-base leading-7 text-white/55 md:text-lg">
+            Connect a GitHub repository, let CodeAtlas index its code and
+            documentation, then ask questions grounded in the actual project.
           </p>
 
           <form
             onSubmit={connectRepository}
-            className="mx-auto mt-10 max-w-2xl rounded-2xl border border-white/[0.10] bg-white/[0.035] p-2 shadow-[0_30px_100px_rgba(0,0,0,.45)] backdrop-blur-xl"
+            className="mx-auto mt-10 flex max-w-2xl flex-col gap-3 sm:flex-row"
           >
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                value={repoUrl}
-                onChange={event => setRepoUrl(event.target.value)}
-                placeholder="https://github.com/username/repository"
-                disabled={isLoading}
-                className="h-12 border-0 bg-transparent px-4 text-sm text-white placeholder:text-zinc-700 focus-visible:ring-0"
-              />
-              <Button
-                type="submit"
-                disabled={isLoading || !repoUrl.trim()}
-                className="h-12 rounded-xl bg-violet-600 px-7 font-medium text-white shadow-[0_0_35px_rgba(124,58,237,.25)] transition hover:bg-violet-500 disabled:opacity-40"
-              >
-                {isLoading ? 'Analyzing...' : 'Analyze Repository'}
-              </Button>
-            </div>
+            <Input
+              value={repoUrl}
+              onChange={(event) => setRepoUrl(event.target.value)}
+              placeholder="https://github.com/owner/repository"
+              disabled={loading}
+              className="h-12 border-white/10 bg-white/[0.04] text-white placeholder:text-white/30"
+            />
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className="h-12 bg-white px-6 text-black hover:bg-white/90"
+            >
+              {loading ? 'Analyzing…' : 'Analyze repository'}
+            </Button>
           </form>
 
+          <button
+            type="button"
+            onClick={() => {
+              setGithubOpen(true)
+              setError('')
+            }}
+            disabled={loading}
+            className="mt-4 text-sm text-violet-300 transition hover:text-violet-200 disabled:opacity-40"
+          >
+            Browse public GitHub repositories →
+          </button>
+
           {status && (
-            <p className="mt-4 text-sm text-zinc-500">{status}</p>
+            <p className="mt-4 text-sm text-white/50">
+              {status}
+            </p>
           )}
 
           {error && (
-            <p className="mt-4 text-sm text-red-400">{error}</p>
+            <p className="mx-auto mt-4 max-w-2xl text-sm text-red-400">
+              {error}
+            </p>
           )}
 
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-3 text-[11px] text-zinc-600">
-            <span>GitHub ingestion</span>
-            <span className="text-zinc-800">•</span>
-            <span>Hybrid retrieval</span>
-            <span className="text-zinc-800">•</span>
-            <span>Source citations</span>
-          </div>
-        </div>
-      </section>
-
-      {/* workflow */}
-      <section className="relative border-y border-white/[0.06] bg-white/[0.012]">
-        <div className="mx-auto max-w-7xl px-6 py-24">
-
-          <div className="mb-12 max-w-2xl">
-            <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-400">
-              See it in action
-            </div>
-            <h2 className="text-3xl font-semibold tracking-tight md:text-5xl">
-              From repository to understanding.
-            </h2>
-            <p className="mt-4 text-sm leading-6 text-zinc-500 md:text-base">
-              CodeAtlas turns a repository into searchable, structured context
-              and gives you answers tied back to the source.
-            </p>
-          </div>
-
-          <div className="overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0b0b16] shadow-[0_30px_100px_rgba(0,0,0,.35)]">
-
-            <div className="flex h-12 items-center gap-2 border-b border-white/[0.06] px-5">
-              <span className="h-2 w-2 rounded-full bg-red-400/50" />
-              <span className="h-2 w-2 rounded-full bg-yellow-400/50" />
-              <span className="h-2 w-2 rounded-full bg-green-400/50" />
-              <div className="ml-4 text-[11px] text-zinc-600">
-                CodeAtlas / repository intelligence
-              </div>
-            </div>
-
-            <div className="grid min-h-[410px] md:grid-cols-[220px_1fr]">
-
-              <div className="border-b border-white/[0.06] p-5 md:border-b-0 md:border-r">
-                <div className="mb-5 text-[10px] uppercase tracking-[0.18em] text-zinc-600">
-                  Repository
-                </div>
-
-                <div className="space-y-3 font-mono text-[11px]">
-                  <div className="text-violet-300">⌄ src</div>
-                  <div className="pl-4 text-zinc-500">⌄ ingestion</div>
-                  <div className="pl-8 text-zinc-600">loader.py</div>
-                  <div className="pl-8 text-zinc-600">chunker.py</div>
-                  <div className="pl-4 text-zinc-500">⌄ retrieval</div>
-                  <div className="pl-8 text-zinc-600">hybrid.py</div>
-                  <div className="pl-8 text-zinc-600">reranker.py</div>
-                  <div className="pl-4 text-zinc-500">pipeline.py</div>
-                  <div className="text-zinc-500">⌄ app</div>
-                  <div className="pl-4 text-zinc-600">models.py</div>
-                </div>
+          <div className="mx-auto mt-20 max-w-4xl rounded-2xl border border-white/10 bg-white/[0.025] p-2 shadow-2xl shadow-violet-950/20">
+            <div className="rounded-xl border border-white/10 bg-[#0d0a16] p-6 text-left">
+              <div className="mb-5 flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+                <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
+                <span className="h-2.5 w-2.5 rounded-full bg-white/20" />
               </div>
 
-              <div className="flex flex-col p-6 md:p-9">
-                <div className="max-w-2xl">
-                  <div className="mb-5 flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10 text-violet-300">
-                      ✦
-                    </div>
-                    <div>
-                      <div className="text-xs font-medium text-zinc-300">
-                        Example workflow
-                      </div>
-                      <div className="text-[10px] text-zinc-600">
-                        Grounded repository answer
-                      </div>
-                    </div>
-                  </div>
+              <div className="grid gap-6 md:grid-cols-[180px_1fr]">
+                <div className="space-y-2 border-r border-white/10 pr-5 text-xs text-white/40">
+                  <p className="text-white/70">CodeAtlas</p>
+                  <p>Repositories</p>
+                  <p>Conversations</p>
+                  <p>Search</p>
+                </div>
 
-                  <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5">
-                    <div className="text-sm text-zinc-300">
-                      Where is the retrieval pipeline implemented?
-                    </div>
-                  </div>
+                <div>
+                  <p className="text-sm text-white/40">Repository question</p>
+                  <p className="mt-2 text-lg text-white/90">
+                    How does this request flow through the application?
+                  </p>
 
-                  <div className="mt-5 rounded-2xl border border-violet-500/10 bg-violet-500/[0.035] p-5">
-                    <p className="text-sm leading-7 text-zinc-400">
-                      The retrieval pipeline combines semantic and keyword
-                      search before reranking the retrieved chunks. The final
-                      context is then passed to the answer generation stage.
+                  <div className="mt-6 rounded-xl border border-white/10 bg-white/[0.025] p-4">
+                    <p className="text-sm leading-6 text-white/65">
+                      CodeAtlas retrieves the relevant implementation,
+                      follows the request path through the codebase, and
+                      returns an answer with source references.
                     </p>
 
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      <span className="rounded-lg border border-white/[0.07] bg-black/20 px-3 py-1.5 font-mono text-[10px] text-violet-300">
-                        retrieval/hybrid.py
-                      </span>
-                      <span className="rounded-lg border border-white/[0.07] bg-black/20 px-3 py-1.5 font-mono text-[10px] text-violet-300">
-                        retrieval/reranker.py
-                      </span>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {['app.py', 'ctx.py', 'routes.py'].map((file) => (
+                        <span
+                          key={file}
+                          className="rounded-md bg-violet-500/10 px-2 py-1 text-xs text-violet-300"
+                        >
+                          {file}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
         </div>
       </section>
 
-      {/* capabilities */}
-      <section className="relative mx-auto max-w-7xl px-6 py-28">
-        <div className="grid gap-16 lg:grid-cols-[.8fr_1.2fr]">
-
-          <div>
-            <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-400">
-              Core capabilities
-            </div>
-            <h2 className="text-3xl font-semibold tracking-tight md:text-5xl">
-              Built for real code.
+      <section className="border-y border-white/10">
+        <div className="mx-auto max-w-5xl px-6 py-20">
+          <div className="mb-12 max-w-xl">
+            <p className="text-sm text-violet-300">How it works</p>
+            <h2 className="mt-3 text-3xl font-semibold">
+              From repository to useful answers.
             </h2>
-            <p className="mt-5 max-w-md text-sm leading-7 text-zinc-500">
-              Every layer is designed around the way software repositories
-              actually work.
-            </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            {capabilities.map(item => (
+          <div className="grid gap-5 md:grid-cols-3">
+            {[
+              ['01', 'Connect', 'Provide a GitHub repository URL or browse public repositories.'],
+              ['02', 'Index', 'CodeAtlas parses and indexes the repository.'],
+              ['03', 'Explore', 'Ask questions and inspect grounded results.'],
+            ].map(([number, title, description]) => (
               <div
-                key={item.number}
-                className="group rounded-2xl border border-white/[0.07] bg-white/[0.025] p-6 transition duration-300 hover:-translate-y-1 hover:border-violet-500/20 hover:bg-white/[0.04]"
+                key={number}
+                className="rounded-2xl border border-white/10 bg-white/[0.025] p-6"
               >
-                <div className="mb-8 text-[10px] font-mono text-violet-400">
-                  {item.number}
-                </div>
-                <h3 className="text-sm font-medium text-zinc-200">
-                  {item.title}
-                </h3>
-                <p className="mt-3 text-xs leading-6 text-zinc-600">
-                  {item.text}
+                <span className="text-xs text-white/30">{number}</span>
+                <h3 className="mt-8 text-lg font-medium">{title}</h3>
+                <p className="mt-2 text-sm leading-6 text-white/45">
+                  {description}
                 </p>
               </div>
             ))}
@@ -328,112 +348,157 @@ export default function IndexPage() {
         </div>
       </section>
 
-      {/* architecture */}
-      <section className="border-y border-white/[0.06] bg-white/[0.012]">
-        <div className="mx-auto max-w-7xl px-6 py-28">
-
-          <div className="mx-auto max-w-2xl text-center">
-            <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-violet-400">
-              Under the hood
-            </div>
-            <h2 className="text-3xl font-semibold tracking-tight md:text-5xl">
-              A retrieval pipeline built for code.
+      <section>
+        <div className="mx-auto max-w-5xl px-6 py-20">
+          <div className="mb-12 max-w-xl">
+            <p className="text-sm text-violet-300">Built for code</p>
+            <h2 className="mt-3 text-3xl font-semibold">
+              Useful repository intelligence, without the noise.
             </h2>
-            <p className="mt-5 text-sm leading-7 text-zinc-500">
-              Repository ingestion, code-aware chunking, vector retrieval,
-              reranking and grounded generation work together as one pipeline.
-            </p>
           </div>
 
-          <div className="mt-14 overflow-x-auto pb-3">
-            <div className="mx-auto flex min-w-[850px] items-center justify-center gap-2">
-              {[
-                ['01', 'Ingest'],
-                ['02', 'AST Chunk'],
-                ['03', 'Embed'],
-                ['04', 'Retrieve'],
-                ['05', 'Rerank'],
-                ['06', 'Answer'],
-              ].map(([number, label], index) => (
-                <div key={number} className="flex items-center">
-                  <div className="rounded-2xl border border-white/[0.08] bg-[#0b0b16] px-5 py-5 text-center shadow-lg">
-                    <div className="text-[9px] font-mono text-violet-400">
-                      {number}
-                    </div>
-                    <div className="mt-2 text-xs font-medium text-zinc-300">
-                      {label}
-                    </div>
-                  </div>
-
-                  {index < 5 && (
-                    <div className="mx-2 text-zinc-700">→</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="mt-14 flex flex-wrap justify-center gap-2">
-            {[
-              'PostgreSQL',
-              'pgvector',
-              'HNSW',
-              'Sentence Transformers',
-              'Hybrid Search',
-              'Gemini',
-            ].map(tech => (
-              <span
-                key={tech}
-                className="rounded-full border border-white/[0.07] bg-white/[0.025] px-4 py-2 text-[11px] text-zinc-500"
+          <div className="grid gap-5 md:grid-cols-2">
+            {capabilities.map((capability) => (
+              <div
+                key={capability.title}
+                className="rounded-2xl border border-white/10 bg-white/[0.025] p-7"
               >
-                {tech}
-              </span>
+                <h3 className="text-lg font-medium">{capability.title}</h3>
+                <p className="mt-3 text-sm leading-6 text-white/45">
+                  {capability.description}
+                </p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="relative mx-auto max-w-5xl px-6 py-32 text-center">
-        <div className="absolute left-1/2 top-1/2 -z-0 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-600/[0.10] blur-[100px]" />
-
-        <div className="relative">
-          <CodeAtlasLogo className="mx-auto h-14 w-14" />
-
-          <h2 className="mt-7 text-4xl font-semibold tracking-tight md:text-6xl">
-            Your codebase has
-            <span className="block text-violet-300">answers.</span>
-          </h2>
-
-          <p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-zinc-500">
-            Connect a repository and start exploring it with source-grounded
-            AI.
-          </p>
-
+      <footer className="border-t border-white/10">
+        <div className="mx-auto flex max-w-5xl flex-col gap-3 px-6 py-10 text-sm text-white/35 sm:flex-row sm:items-center sm:justify-between">
+          <span>CodeAtlas — AI codebase intelligence</span>
           <a
-            href="#top"
-            className="mt-9 inline-flex items-center rounded-xl bg-violet-600 px-6 py-3 text-sm font-medium text-white shadow-[0_0_40px_rgba(124,58,237,.22)] transition hover:bg-violet-500"
+            href="https://github.com/Mohammed18-19/CodeAtlas"
+            target="_blank"
+            rel="noreferrer"
+            className="transition hover:text-white"
           >
-            Analyze a repository
+            Source on GitHub ↗
           </a>
         </div>
-      </section>
+      </footer>
 
-      {/* footer */}
-      <footer className="border-t border-white/[0.06]">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-6 py-8 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <CodeAtlasLogo className="h-7 w-7" />
-            <span className="text-xs text-zinc-500">
-              Code<span className="text-violet-400">Atlas</span>
-            </span>
-          </div>
+      {githubOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onMouseDown={(event) => {
+            if (event.currentTarget === event.target) {
+              setGithubOpen(false)
+            }
+          }}
+        >
+          <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-[#100c18] shadow-2xl">
+            <div className="border-b border-white/10 p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold">
+                    Browse GitHub repositories
+                  </h2>
+                  <p className="mt-1 text-sm text-white/40">
+                    Search public repositories and analyze one directly.
+                  </p>
+                </div>
 
-          <div className="text-[10px] uppercase tracking-[0.15em] text-zinc-700">
-            AI Codebase Intelligence
+                <button
+                  type="button"
+                  onClick={() => setGithubOpen(false)}
+                  className="text-white/40 transition hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="mt-5 flex gap-2">
+                <Input
+                  value={githubQuery}
+                  onChange={(event) => setGithubQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      void searchGitHub()
+                    }
+                  }}
+                  placeholder="Search GitHub, e.g. flask python"
+                  className="border-white/10 bg-white/[0.04] text-white placeholder:text-white/30"
+                />
+
+                <Button
+                  type="button"
+                  onClick={() => void searchGitHub()}
+                  disabled={githubLoading || !githubQuery.trim()}
+                  className="bg-white text-black hover:bg-white/90"
+                >
+                  {githubLoading ? 'Searching…' : 'Search'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="max-h-[55vh] overflow-y-auto p-5">
+              {githubResults.length === 0 && !githubLoading && (
+                <div className="py-10 text-center text-sm text-white/35">
+                  Search for a public GitHub repository.
+                </div>
+              )}
+
+              <div className="space-y-3">
+                {githubResults.map((repo) => (
+                  <div
+                    key={repo.id}
+                    className="rounded-xl border border-white/10 bg-white/[0.025] p-4"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-white">
+                          {repo.full_name}
+                        </p>
+
+                        <p className="mt-1 line-clamp-2 text-sm leading-5 text-white/40">
+                          {repo.description || 'No description provided.'}
+                        </p>
+
+                        <div className="mt-3 flex flex-wrap gap-3 text-xs text-white/35">
+                          {repo.language && <span>{repo.language}</span>}
+                          <span>★ {repo.stargazers_count.toLocaleString()}</span>
+                          <span>⑂ {repo.forks_count.toLocaleString()}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex shrink-0 gap-2">
+                        <a
+                          href={repo.html_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-lg border border-white/10 px-3 py-2 text-xs text-white/50 transition hover:text-white"
+                        >
+                          GitHub
+                        </a>
+
+                        <Button
+                          type="button"
+                          onClick={() => void analyzeRepository(repo.clone_url)}
+                          disabled={loading}
+                          className="bg-white text-black hover:bg-white/90"
+                        >
+                          Analyze
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
-      </footer>
+      )}
     </main>
   )
 }

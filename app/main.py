@@ -370,6 +370,90 @@ def chat():
         }), 500
 
 
+
+@app.get("/github/search")
+def github_search_repositories():
+    """
+    Search public GitHub repositories through GitHub's public REST API.
+
+    No GitHub credentials are required for public repositories.
+    """
+    from urllib.parse import quote
+    from urllib.request import Request, urlopen
+    from urllib.error import HTTPError, URLError
+    import json
+
+    query = request.args.get("q", "").strip()
+    if not query:
+        return jsonify({"repositories": []})
+
+    if len(query) > 200:
+        return jsonify({"error": "Search query is too long."}), 400
+
+    try:
+        encoded = quote(query)
+        url = (
+            "https://api.github.com/search/repositories"
+            f"?q={encoded}&sort=stars&order=desc&per_page=8"
+        )
+
+        req = Request(
+            url,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+                "User-Agent": "CodeAtlas",
+            },
+        )
+
+        with urlopen(req, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+
+        repositories = []
+
+        for repo in payload.get("items", []):
+            repositories.append(
+                {
+                    "id": repo.get("id"),
+                    "name": repo.get("name"),
+                    "full_name": repo.get("full_name"),
+                    "html_url": repo.get("html_url"),
+                    "clone_url": repo.get("clone_url"),
+                    "description": repo.get("description"),
+                    "language": repo.get("language"),
+                    "stargazers_count": repo.get("stargazers_count", 0),
+                    "forks_count": repo.get("forks_count", 0),
+                    "owner": {
+                        "login": (repo.get("owner") or {}).get("login"),
+                        "avatar_url": (repo.get("owner") or {}).get("avatar_url"),
+                    },
+                }
+            )
+
+        return jsonify({"repositories": repositories})
+
+    except HTTPError as exc:
+        if exc.code == 403:
+            return jsonify(
+                {
+                    "error": (
+                        "GitHub search rate limit reached. "
+                        "You can still analyze a repository by pasting its URL."
+                    )
+                }
+            ), 429
+
+        return jsonify({"error": f"GitHub returned HTTP {exc.code}."}), 502
+
+    except URLError:
+        return jsonify(
+            {"error": "Could not reach GitHub right now."}
+        ), 502
+
+    except Exception as exc:
+        app.logger.exception("GitHub search failed")
+        return jsonify({"error": str(exc)}), 500
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",

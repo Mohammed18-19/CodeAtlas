@@ -125,9 +125,10 @@ def test_create_repository_success():
             },
         )
 
-    assert response.status_code == 201
+    assert response.status_code == 202
 
     data = response.get_json()
 
-    assert data["repository_id"] == 99
-    assert data["status"] == "ingested"
+    assert "job_id" in data
+    assert data["job_id"]
+    assert data["status"] == "queued"

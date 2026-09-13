@@ -9,6 +9,9 @@ import { Providers } from '@/components/providers'
 import { Header } from '@/components/header'
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  ),
   title: {
     default: 'CodeAtlas',
     template: `%s - CodeAtlas`
