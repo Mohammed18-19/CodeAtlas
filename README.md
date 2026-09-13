@@ -836,5 +836,5 @@ AI Engineer · Backend Developer · RAG & LLM Systems
 
 ## UI Preview
 
-![CodeAtlas UI Preview](./UI%20CodeAtlas.png)
-![CodeAtlas UI Preview](./UI%20CodeAtlas.png)
+![CodeAtlas UI Preview](./frontend/public/CodeAtlas-ui-preview.png)
+![CodeAtlas UI Preview](./frontend/public/CodeAtlas-ui-preview.png)
