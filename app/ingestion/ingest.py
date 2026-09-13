@@ -75,7 +75,11 @@ def ingest_repository(
                 message="Repository already exists.",
             )
 
-            return existing_repository
+            return {
+                "id": existing_repository.id,
+                "name": existing_repository.name,
+                "file_count": existing_repository.file_count,
+            }
 
         # ---------------------------------------------------------
         # Clone
@@ -208,7 +212,11 @@ def ingest_repository(
             message="Finalizing repository...",
         )
 
-        return repository
+        return {
+            "id": repository_id,
+            "name": repository_name,
+            "file_count": processed_files,
+        }
 
     except Exception:
         db.rollback()

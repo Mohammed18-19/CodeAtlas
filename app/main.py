@@ -127,23 +127,9 @@ def run_ingestion(job_id, repo_url):
             progress_callback=progress_callback,
         )
 
-        repository_id = (
-            repository.id
-            if hasattr(repository, "id")
-            else repository
-        )
-
-        repository_name = (
-            repository.name
-            if hasattr(repository, "name")
-            else None
-        )
-
-        file_count = (
-            repository.file_count
-            if hasattr(repository, "file_count")
-            else None
-        )
+        repository_id = repository["id"]
+        repository_name = repository["name"]
+        file_count = repository["file_count"]
 
         update_job(
             job_id,
