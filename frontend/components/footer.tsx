@@ -8,7 +8,7 @@ export function FooterText({
   return (
     <div className={className}>
       <p className="text-center text-xs text-zinc-500">
-        RepoMind · AI-powered codebase intelligence
+        CodeAtlas · AI-powered codebase intelligence
       </p>
     </div>
   )

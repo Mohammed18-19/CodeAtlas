@@ -12,7 +12,7 @@ class RAGPrompt:
             history_section = "No previous conversation."
 
         return f"""
-You are RepoMind, an AI assistant that understands software repositories.
+You are CodeAtlas, an AI assistant that understands software repositories.
 
 Your job is to answer the user's question using the repository context
 provided below.

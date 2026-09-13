@@ -10,8 +10,8 @@ import { Header } from '@/components/header'
 
 export const metadata: Metadata = {
   title: {
-    default: 'RepoMind',
-    template: `%s - RepoMind`
+    default: 'CodeAtlas',
+    template: `%s - CodeAtlas`
   },
   description: 'AI-powered codebase intelligence with grounded answers and source citations.',
   themeColor: [

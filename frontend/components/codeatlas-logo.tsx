@@ -1,22 +1,22 @@
 import * as React from 'react'
 
-interface RepoMindLogoProps {
+interface CodeAtlasLogoProps {
   className?: string
 }
 
-export function RepoMindLogo({
+export function CodeAtlasLogo({
   className = 'h-10 w-10'
-}: RepoMindLogoProps) {
+}: CodeAtlasLogoProps) {
   return (
     <svg
       viewBox="0 0 64 64"
       className={className}
-      aria-label="RepoMind"
+      aria-label="CodeAtlas"
       role="img"
     >
       <defs>
         <linearGradient
-          id="repomind-logo-gradient"
+          id="codeatlas-logo-gradient"
           x1="8"
           y1="8"
           x2="56"
@@ -30,7 +30,7 @@ export function RepoMindLogo({
       </defs>
 
       <path
-        fill="url(#repomind-logo-gradient)"
+        fill="url(#codeatlas-logo-gradient)"
         d="M12 10h25c10 0 17 6 17 15 0 7-4 12-10 14l11 15H41L31 41h-7v13H12V10Zm12 10v11h11c4 0 7-2 7-5.5S39 20 35 20H24Z"
       />
 

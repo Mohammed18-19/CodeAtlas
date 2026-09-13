@@ -6,9 +6,9 @@ import { ChatList } from '@/components/chat-list'
 import { ChatPanel } from '@/components/chat-panel'
 import { EmptyScreen } from '@/components/empty-screen'
 import { ChatScrollAnchor } from '@/components/chat-scroll-anchor'
-import { type RepoMindMessage } from '@/lib/types'
+import { type CodeAtlasMessage } from '@/lib/types'
 
-const API_URL = '/api/repomind'
+const API_URL = 'http://localhost:5000'
 
 export interface ChatProps extends React.ComponentProps<'div'> {
   repositoryId?: number
@@ -27,7 +27,7 @@ export function Chat({
     initialConversationId ?? null
   )
 
-  const [messages, setMessages] = useState<RepoMindMessage[]>([])
+  const [messages, setMessages] = useState<CodeAtlasMessage[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
@@ -36,7 +36,7 @@ export function Chat({
 
     setIsLoading(true)
 
-    const userMessage: RepoMindMessage = {
+    const userMessage: CodeAtlasMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
       content: question
@@ -84,12 +84,12 @@ export function Chat({
       })
 
       if (!response.ok) {
-        throw new Error('Failed to get RepoMind response')
+        throw new Error('Failed to get CodeAtlas response')
       }
 
       const data = await response.json()
 
-      const assistantMessage: RepoMindMessage = {
+      const assistantMessage: CodeAtlasMessage = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
         content: data.answer
@@ -105,7 +105,7 @@ export function Chat({
           id: `error-${Date.now()}`,
           role: 'assistant',
           content:
-            'Sorry, I could not connect to RepoMind. Make sure the Flask backend is running.'
+            'Sorry, I could not connect to CodeAtlas. Make sure the Flask backend is running.'
         }
       ])
     } finally {

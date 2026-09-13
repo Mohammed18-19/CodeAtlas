@@ -13,7 +13,7 @@ def test_health():
     data = response.get_json()
 
     assert data["status"] == "ok"
-    assert data["service"] == "RepoMind"
+    assert data["service"] == "CodeAtlas"
 
 
 def test_chat_missing_question():

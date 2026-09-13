@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button'
 import { IconArrowRight } from '@/components/ui/icons'
-import { RepoMindLogo } from '@/components/repomind-logo'
+import { CodeAtlasLogo } from '@/components/codeatlas-logo'
 
 const exampleMessages = [
   {
@@ -29,7 +29,7 @@ export function EmptyScreen({
   return (
     <div className="mx-auto flex min-h-[calc(100vh-10rem)] w-full max-w-4xl flex-col items-center justify-center px-4 pb-24 pt-8">
 
-      <RepoMindLogo className="mb-5 h-24 w-24 drop-shadow-[0_0_30px_rgba(139,92,246,0.35)]" />
+      <CodeAtlasLogo className="mb-5 h-24 w-24 drop-shadow-[0_0_30px_rgba(139,92,246,0.35)]" />
 
       <h1 className="text-center text-5xl font-semibold tracking-tight text-white">
         Repo<span className="text-violet-400">Mind</span>

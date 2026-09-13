@@ -69,7 +69,7 @@ def main():
     print()
     print()
     print("=" * 70)
-    print("RepoMind Retrieval Evaluation")
+    print("CodeAtlas Retrieval Evaluation")
     print("=" * 70)
     print(f"Questions:          {total}")
     print(f"Retrieval Passes:   {successful}")

@@ -3,7 +3,7 @@ import { PromptForm } from '@/components/prompt-form'
 import { ButtonScrollToBottom } from '@/components/button-scroll-to-bottom'
 import { IconRefresh, IconStop } from '@/components/ui/icons'
 import { FooterText } from '@/components/footer'
-import { type RepoMindMessage } from '@/lib/types'
+import { type CodeAtlasMessage } from '@/lib/types'
 
 export interface ChatPanelProps {
   isLoading: boolean
@@ -11,7 +11,7 @@ export interface ChatPanelProps {
   reload: () => void
   input: string
   setInput: (value: string) => void
-  messages: RepoMindMessage[]
+  messages: CodeAtlasMessage[]
   onSubmit: (value: string) => Promise<void>
 }
 

@@ -5,13 +5,14 @@ import { Chat } from '@/components/chat'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
-const API_URL = '/api/repomind'
+const API_URL = 'http://localhost:5000'
 
 export default function IndexPage() {
   const [repoUrl, setRepoUrl] = useState('')
   const [repositoryId, setRepositoryId] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [status, setStatus] = useState('')
 
   async function connectRepository(event: React.FormEvent) {
     event.preventDefault()
@@ -20,6 +21,7 @@ export default function IndexPage() {
 
     setIsLoading(true)
     setError('')
+    setStatus('Starting repository analysis...')
 
     try {
       const response = await fetch(`${API_URL}/repositories`, {
@@ -33,17 +35,49 @@ export default function IndexPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to analyze repository')
+        throw new Error('Failed to start repository analysis')
       }
 
       const data = await response.json()
+      const jobId = data.job_id
 
-      setRepositoryId(data.repository_id)
+      setStatus('Cloning and indexing repository...')
+
+      while (true) {
+        await new Promise(resolve => setTimeout(resolve, 1000))
+
+        const statusResponse = await fetch(
+          `${API_URL}/repositories/status/${jobId}`
+        )
+
+        if (!statusResponse.ok) {
+          throw new Error('Failed to check repository status')
+        }
+
+        const statusData = await statusResponse.json()
+
+        if (statusData.status === 'completed') {
+          setRepositoryId(statusData.repository_id)
+          setStatus('')
+          break
+        }
+
+        if (statusData.status === 'failed') {
+          throw new Error(
+            statusData.error || 'Repository ingestion failed'
+          )
+        }
+
+        setStatus('Cloning and indexing repository...')
+      }
     } catch (error) {
       console.error(error)
       setError(
-        'Could not analyze this repository. Make sure the URL is valid and the backend is running.'
+        error instanceof Error
+              ? error.message
+              : 'Could not analyze repository.'
       )
+      setStatus('')
     } finally {
       setIsLoading(false)
     }
@@ -63,7 +97,7 @@ export default function IndexPage() {
             </h1>
 
             <p className="mt-3 text-muted-foreground">
-              Connect a GitHub repository and ask RepoMind questions about
+              Connect a GitHub repository and ask CodeAtlas questions about
               its architecture, implementation, and code.
             </p>
           </div>
@@ -84,6 +118,12 @@ export default function IndexPage() {
               {isLoading ? 'Analyzing repository...' : 'Analyze Repository'}
             </Button>
           </form>
+
+          {status && (
+            <p className="mt-4 text-sm text-muted-foreground">
+              {status}
+            </p>
+          )}
 
           {error && (
             <p className="mt-4 text-sm text-destructive">

@@ -46,7 +46,7 @@ def ingest_repository(repo_url: str) -> int:
         repository_name = get_repository_name(repo_url)
 
         print("=" * 70)
-        print("RepoMind Ingestion")
+        print("CodeAtlas Ingestion")
         print("=" * 70)
         print(f"Repository: {repository_name}")
         print(f"URL:        {repo_url}")
@@ -261,7 +261,7 @@ def ingest_repository(repo_url: str) -> int:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Ingest a GitHub repository into RepoMind."
+        description="Ingest a GitHub repository into CodeAtlas."
     )
 
     parser.add_argument(

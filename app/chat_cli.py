@@ -52,7 +52,7 @@ def main():
 
         print()
         print("=" * 60)
-        print(f"RepoMind Chat - {repository.name}")
+        print(f"CodeAtlas Chat - {repository.name}")
         print(f"Conversation ID: {conversation.id}")
         print("Type 'exit' or 'quit' to leave.")
         print("=" * 60)
@@ -78,7 +78,7 @@ def main():
                 )
 
                 print()
-                print("RepoMind:")
+                print("CodeAtlas:")
                 print(answer)
 
             except Exception as exc:

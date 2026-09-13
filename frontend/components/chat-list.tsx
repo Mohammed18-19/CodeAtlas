@@ -1,9 +1,9 @@
 import { Separator } from '@/components/ui/separator'
 import { ChatMessage } from '@/components/chat-message'
-import { type RepoMindMessage } from '@/lib/types'
+import { type CodeAtlasMessage } from '@/lib/types'
 
 export interface ChatListProps {
-  messages: RepoMindMessage[]
+  messages: CodeAtlasMessage[]
 }
 
 export function ChatList({ messages }: ChatListProps) {

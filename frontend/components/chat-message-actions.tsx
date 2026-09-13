@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button'
 import { IconCheck, IconCopy } from '@/components/ui/icons'
 import { useCopyToClipboard } from '@/lib/hooks/use-copy-to-clipboard'
 import { cn } from '@/lib/utils'
-import { type RepoMindMessage } from '@/lib/types'
+import { type CodeAtlasMessage } from '@/lib/types'
 
 interface ChatMessageActionsProps extends React.ComponentProps<'div'> {
-  message: RepoMindMessage
+  message: CodeAtlasMessage
 }
 
 export function ChatMessageActions({

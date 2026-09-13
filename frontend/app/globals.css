@@ -77,13 +77,13 @@
   }
 }
 
-/* RepoMind visual identity */
+/* CodeAtlas visual identity */
 
 body {
   background: #070711;
 }
 
-.repomind-gradient {
+.codeatlas-gradient {
   background: linear-gradient(
     135deg,
     #5b21b6 0%,
@@ -92,6 +92,6 @@ body {
   );
 }
 
-.repomind-glow {
+.codeatlas-glow {
   box-shadow: 0 0 35px rgba(124, 58, 237, 0.22);
 }

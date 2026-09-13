@@ -1,15 +1,15 @@
-# RepoMind
+# CodeAtlas
 
 ## UI Preview
 
-![RepoMind UI Preview](frontend/public/RepoMind-ui-preview.png)
+![CodeAtlas UI Preview](frontend/public/CodeAtlas-ui-preview.png)
 
 
 ### AI Codebase Intelligence System powered by RAG
 
-**RepoMind** is an AI-powered codebase intelligence system that allows developers to understand unfamiliar software repositories through natural-language questions.
+**CodeAtlas** is an AI-powered codebase intelligence system that allows developers to understand unfamiliar software repositories through natural-language questions.
 
-Instead of sending an entire repository to an LLM, RepoMind builds a retrieval pipeline specifically designed for source code:
+Instead of sending an entire repository to an LLM, CodeAtlas builds a retrieval pipeline specifically designed for source code:
 
 **Repository → Code-aware chunks → Embeddings → Hybrid retrieval → Reranking → Grounded generation → Source citations**
 
@@ -19,7 +19,7 @@ The goal is simple:
 
 ---
 
-## ✨ Why RepoMind?
+## ✨ Why CodeAtlas?
 
 Large language models are good at reasoning about code, but giving an LLM an entire repository creates several problems:
 
@@ -30,7 +30,7 @@ Large language models are good at reasoning about code, but giving an LLM an ent
 * Generated answers can contain unsupported claims.
 * Developers need to know **where an answer came from**.
 
-RepoMind addresses these problems with a retrieval-first architecture combining:
+CodeAtlas addresses these problems with a retrieval-first architecture combining:
 
 * AST-based code-aware chunking
 * Dense vector search
@@ -132,7 +132,7 @@ RepoMind addresses these problems with a retrieval-first architecture combining:
 
 # 🔍 Core Retrieval Pipeline
 
-RepoMind is not simply "an LLM connected to a vector database."
+CodeAtlas is not simply "an LLM connected to a vector database."
 
 The retrieval pipeline contains several stages, each solving a different problem.
 
@@ -165,7 +165,7 @@ This prevents irrelevant data from entering the retrieval index.
 
 ### 3. Code-aware chunking
 
-Instead of blindly splitting source files by character count, RepoMind uses Python's AST to identify top-level code structures such as:
+Instead of blindly splitting source files by character count, CodeAtlas uses Python's AST to identify top-level code structures such as:
 
 * imports
 * functions
@@ -204,7 +204,7 @@ The vectors are stored directly in PostgreSQL through `pgvector`.
 
 # 🗄️ PostgreSQL + pgvector
 
-RepoMind uses PostgreSQL as the primary persistence layer.
+CodeAtlas uses PostgreSQL as the primary persistence layer.
 
 `pgvector` provides vector storage and similarity search directly inside PostgreSQL.
 
@@ -245,12 +245,12 @@ contains an exact identifier that keyword matching can retrieve extremely well.
 On the other hand:
 
 ```text
-How does RepoMind remember previous questions?
+How does CodeAtlas remember previous questions?
 ```
 
 is more semantic and benefits from vector search.
 
-RepoMind therefore combines two retrieval strategies.
+CodeAtlas therefore combines two retrieval strategies.
 
 ### Semantic Search
 
@@ -294,7 +294,7 @@ better retrieval
 
 Initial retrieval is optimized for recall.
 
-RepoMind then applies a second-stage **cross-encoder reranker** to improve the ordering of the retrieved candidates.
+CodeAtlas then applies a second-stage **cross-encoder reranker** to improve the ordering of the retrieved candidates.
 
 The pipeline becomes:
 
@@ -321,7 +321,7 @@ instead of relying on a single retrieval mechanism.
 
 # 🧠 Grounded Generation
 
-After retrieval, RepoMind constructs a structured context containing the selected source chunks.
+After retrieval, CodeAtlas constructs a structured context containing the selected source chunks.
 
 Example:
 
@@ -370,13 +370,13 @@ Grounded Answer
 Source Citation
 ```
 
-Traceability is a core design goal of RepoMind.
+Traceability is a core design goal of CodeAtlas.
 
 ---
 
 # 💬 Conversation History
 
-RepoMind also persists conversations and messages.
+CodeAtlas also persists conversations and messages.
 
 This allows follow-up questions to use previous conversational context.
 
@@ -386,13 +386,13 @@ For example:
 User:
 How is authentication implemented?
 
-RepoMind:
+CodeAtlas:
 ...
 
 User:
 Where is that logic called?
 
-RepoMind:
+CodeAtlas:
 ...
 ```
 
@@ -404,7 +404,7 @@ Repository facts still need to come from retrieved repository context.
 
 # 📊 Evaluation
 
-RepoMind includes a labeled retrieval evaluation set containing **30 queries**.
+CodeAtlas includes a labeled retrieval evaluation set containing **30 queries**.
 
 Current evaluation result:
 
@@ -426,7 +426,7 @@ The purpose is not to claim perfect retrieval, but to have a measurable way to i
 
 # 🌐 REST API
 
-RepoMind exposes a lightweight Flask API.
+CodeAtlas exposes a lightweight Flask API.
 
 ### Health
 
@@ -481,7 +481,7 @@ Example response:
 
 # 🧪 Testing
 
-RepoMind includes API tests covering:
+CodeAtlas includes API tests covering:
 
 * health checks
 * validation errors
@@ -512,13 +512,13 @@ git diff --check
 
 # 🐳 Docker
 
-RepoMind can be run using Docker Compose.
+CodeAtlas can be run using Docker Compose.
 
 The stack contains:
 
 ```text
 ┌───────────────────┐
-│   RepoMind App    │
+│   CodeAtlas App    │
 │     Flask API     │
 └─────────┬─────────┘
           │
@@ -557,7 +557,7 @@ Expected:
 
 ```json
 {
-  "service": "RepoMind",
+  "service": "CodeAtlas",
   "status": "ok"
 }
 ```
@@ -569,8 +569,8 @@ Expected:
 ### 1. Clone
 
 ```bash
-git clone https://github.com/Mohammed18-19/RepoMind.git
-cd RepoMind
+git clone https://github.com/Mohammed18-19/CodeAtlas.git
+cd CodeAtlas
 ```
 
 ### 2. Create a virtual environment
@@ -614,7 +614,7 @@ For the most reproducible setup, Docker Compose is recommended.
 # 📁 Project Structure
 
 ```text
-RepoMind/
+CodeAtlas/
 │
 ├── app/
 │   ├── ingestion/
@@ -668,7 +668,7 @@ RepoMind/
 
 # 🎯 Design Goals
 
-RepoMind was built around several principles.
+CodeAtlas was built around several principles.
 
 ### Retrieval before generation
 
@@ -700,13 +700,13 @@ Retrieval quality should be evaluated instead of assumed.
 
 ### Simplicity
 
-RepoMind intentionally avoids unnecessary infrastructure and focuses on the core code intelligence pipeline.
+CodeAtlas intentionally avoids unnecessary infrastructure and focuses on the core code intelligence pipeline.
 
 ---
 
 # ⚠️ Current Limitations
 
-RepoMind is a portfolio-focused engineering project rather than a full commercial developer platform.
+CodeAtlas is a portfolio-focused engineering project rather than a full commercial developer platform.
 
 Current limitations include:
 
@@ -744,7 +744,7 @@ These are intentionally outside the current core scope.
 
 Secrets should never be committed to the repository.
 
-RepoMind uses:
+CodeAtlas uses:
 
 ```text
 .env
@@ -764,7 +764,7 @@ The real `.env` file is excluded from version control.
 
 # 📈 What This Project Demonstrates
 
-RepoMind demonstrates practical understanding of an end-to-end AI engineering system rather than only LLM API usage.
+CodeAtlas demonstrates practical understanding of an end-to-end AI engineering system rather than only LLM API usage.
 
 ### AI / RAG
 
@@ -801,7 +801,7 @@ RepoMind demonstrates practical understanding of an end-to-end AI engineering sy
 
 # 🧩 Engineering Takeaway
 
-The central idea behind RepoMind is not simply:
+The central idea behind CodeAtlas is not simply:
 
 > "Connect an LLM to a vector database."
 
@@ -809,7 +809,7 @@ It is:
 
 > **Design a retrieval system that can identify the right pieces of a codebase, rank them effectively, preserve their source information, and provide that evidence to an LLM in a controlled way.**
 
-That distinction is what makes RepoMind a **codebase intelligence system** rather than a basic chatbot.
+That distinction is what makes CodeAtlas a **codebase intelligence system** rather than a basic chatbot.
 
 ---
 

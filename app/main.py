@@ -39,7 +39,7 @@ pipeline = LazyPipeline()
 @app.get("/health")
 def health():
     return jsonify({
-        "service": "RepoMind",
+        "service": "CodeAtlas",
         "status": "ok",
     })
 

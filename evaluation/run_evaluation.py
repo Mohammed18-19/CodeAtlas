@@ -16,7 +16,7 @@ def main():
     print()
     print()
     print("=" * 70)
-    print("RepoMind Evaluation Report")
+    print("CodeAtlas Evaluation Report")
     print("=" * 70)
 
     print(

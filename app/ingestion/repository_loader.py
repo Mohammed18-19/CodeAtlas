@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class RepositoryLoader:
     def load_from_github(self, repo_url: str) -> Path:
-        destination = Path(tempfile.mkdtemp(prefix="repomind_"))
+        destination = Path(tempfile.mkdtemp(prefix="codeatlas_"))
 
         logger.info("Cloning repository: %s", repo_url)
 
@@ -31,7 +31,7 @@ class RepositoryLoader:
         return destination
 
     def load_from_zip(self, zip_path: str | Path) -> Path:
-        destination = Path(tempfile.mkdtemp(prefix="repomind_"))
+        destination = Path(tempfile.mkdtemp(prefix="codeatlas_"))
 
         logger.info("Extracting ZIP repository: %s", zip_path)
 

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 
 import { ThemeToggle } from '@/components/theme-toggle'
-import { RepoMindLogo } from '@/components/repomind-logo'
+import { CodeAtlasLogo } from '@/components/codeatlas-logo'
 import { IconGitHub } from '@/components/ui/icons'
 
 export function Header() {
@@ -15,7 +15,7 @@ export function Header() {
           href="/"
           className="mb-8 flex items-center gap-3 px-2"
         >
-          <RepoMindLogo className="h-9 w-9" />
+          <CodeAtlasLogo className="h-9 w-9" />
 
           <span className="text-xl font-semibold tracking-tight text-white">
             Repo<span className="text-violet-400">Mind</span>
@@ -69,7 +69,7 @@ export function Header() {
 
           <a
             target="_blank"
-            href="https://github.com/Mohammed18-19/RepoMind"
+            href="https://github.com/Mohammed18-19/CodeAtlas"
             rel="noopener noreferrer"
             className="flex items-center rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-white/5 hover:text-white"
           >
