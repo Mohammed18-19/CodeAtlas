@@ -95,3 +95,17 @@ body {
 .codeatlas-glow {
   box-shadow: 0 0 35px rgba(124, 58, 237, 0.22);
 }
+
+
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: rgba(124, 58, 237, 0.35);
+  color: white;
+}
+
+body {
+  min-width: 320px;
+}

@@ -1,85 +1,85 @@
 'use client'
 
 import Link from 'next/link'
-
-import { ThemeToggle } from '@/components/theme-toggle'
 import { CodeAtlasLogo } from '@/components/codeatlas-logo'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { IconGitHub } from '@/components/ui/icons'
+
+const navigation = [
+  { label: 'New Chat', href: '/', icon: '✦', active: true },
+  { label: 'Repositories', href: '/', icon: '⌘' },
+  { label: 'Search', href: '/', icon: '⌕' },
+  { label: 'History', href: '/', icon: '◷' },
+]
 
 export function Header() {
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 border-r border-white/10 bg-[#070711] lg:flex lg:flex-col">
+    <aside className="fixed inset-y-0 left-0 z-50 hidden w-[260px] border-r border-white/[0.07] bg-[#080812] lg:flex lg:flex-col">
       <div className="flex h-full flex-col px-4 py-5">
 
-        <Link
-          href="/"
-          className="mb-8 flex items-center gap-3 px-2"
-        >
+        <Link href="/" className="mb-8 flex items-center gap-3 px-2">
           <CodeAtlasLogo className="h-9 w-9" />
 
-          <span className="text-xl font-semibold tracking-tight text-white">
-            Repo<span className="text-violet-400">Mind</span>
-          </span>
+          <div>
+            <div className="text-[17px] font-semibold tracking-tight text-white">
+              Code<span className="text-violet-400">Atlas</span>
+            </div>
+            <div className="text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+              AI Code Intelligence
+            </div>
+          </div>
         </Link>
 
-        <nav className="space-y-2">
-
-          <Link
-            href="/"
-            className="flex items-center rounded-xl bg-violet-600/20 px-4 py-3 text-sm font-medium text-violet-200 ring-1 ring-violet-500/20"
-          >
-            <span className="mr-3 text-lg text-violet-300">◌</span>
-            New Chat
-          </Link>
-
-          <Link
-            href="/"
-            className="flex items-center rounded-xl px-4 py-3 text-sm text-zinc-400 transition hover:bg-white/5 hover:text-zinc-100"
-          >
-            <span className="mr-3">⌘</span>
-            Repositories
-          </Link>
-
-          <Link
-            href="/"
-            className="flex items-center rounded-xl px-4 py-3 text-sm text-zinc-400 transition hover:bg-white/5 hover:text-zinc-100"
-          >
-            <span className="mr-3">⚙</span>
-            Settings
-          </Link>
-
+        <nav className="space-y-1">
+          {navigation.map(item => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className={
+                item.active
+                  ? 'flex items-center gap-3 rounded-xl border border-violet-500/20 bg-violet-500/[0.12] px-3.5 py-2.5 text-sm font-medium text-violet-200 shadow-[0_0_24px_rgba(124,58,237,0.08)]'
+                  : 'flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm text-zinc-500 transition hover:bg-white/[0.04] hover:text-zinc-200'
+              }
+            >
+              <span className="flex w-5 justify-center text-base">
+                {item.icon}
+              </span>
+              {item.label}
+            </Link>
+          ))}
         </nav>
 
-        <div className="my-6 border-t border-white/10" />
+        <div className="my-7 h-px bg-white/[0.07]" />
 
-        <div className="px-2">
-          <p className="mb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
-            Recent Chats
-          </p>
+        <div className="px-1">
+          <div className="mb-3 px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-600">
+            Recent chats
+          </div>
 
-          <div className="rounded-lg px-2 py-2 text-sm text-zinc-400">
-            <span className="mr-2">◌</span>
-            What is the purpose of this...
+          <div className="rounded-xl px-3 py-2.5 text-sm text-zinc-500 transition hover:bg-white/[0.035] hover:text-zinc-300">
+            <div className="truncate">
+              Ask about your codebase
+            </div>
+            <div className="mt-1 text-[10px] text-zinc-700">
+              No conversations yet
+            </div>
           </div>
         </div>
 
-        <div className="mt-auto flex items-center justify-between border-t border-white/10 pt-4">
+        <div className="mt-auto border-t border-white/[0.07] pt-4">
+          <div className="flex items-center justify-between px-1">
+            <ThemeToggle />
 
-          <ThemeToggle />
-
-          <a
-            target="_blank"
-            href="https://github.com/Mohammed18-19/CodeAtlas"
-            rel="noopener noreferrer"
-            className="flex items-center rounded-lg px-3 py-2 text-sm text-zinc-400 transition hover:bg-white/5 hover:text-white"
-          >
-            <IconGitHub />
-
-            <span className="ml-2">
+            <a
+              target="_blank"
+              href="https://github.com/Mohammed18-19/CodeAtlas"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-zinc-500 transition hover:bg-white/[0.04] hover:text-zinc-200"
+            >
+              <IconGitHub className="h-4 w-4" />
               GitHub
-            </span>
-          </a>
-
+            </a>
+          </div>
         </div>
       </div>
     </aside>

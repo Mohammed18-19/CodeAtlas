@@ -6,3 +6,5 @@ torch==2.8.0+cpu
 sentence-transformers
 google-genai
 Flask
+Flask-Cors
+gunicorn

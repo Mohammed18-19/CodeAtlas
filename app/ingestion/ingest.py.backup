@@ -33,14 +33,7 @@ def get_repository_name(repo_url: str) -> str:
     return name
 
 
-def ingest_repository(
-    repo_url: str,
-    progress_callback=None,
-):
-    def progress(**updates):
-        if progress_callback:
-            progress_callback(**updates)
-
+def ingest_repository(repo_url: str) -> int:
     loader = RepositoryLoader()
     discovery = FileDiscovery()
     chunker = CodeChunker()
@@ -52,15 +45,16 @@ def ingest_repository(
     try:
         repository_name = get_repository_name(repo_url)
 
+        print("=" * 70)
+        print("CodeAtlas Ingestion")
+        print("=" * 70)
+        print(f"Repository: {repository_name}")
+        print(f"URL:        {repo_url}")
+        print()
+
         # ---------------------------------------------------------
         # Check duplicate repository
         # ---------------------------------------------------------
-
-        progress(
-            phase="checking",
-            progress=15,
-            message="Checking existing repositories...",
-        )
 
         existing_repository = (
             db.query(Repository)
@@ -69,35 +63,24 @@ def ingest_repository(
         )
 
         if existing_repository is not None:
-            progress(
-                phase="ready",
-                progress=100,
-                message="Repository already exists.",
-            )
-
             return existing_repository
 
         # ---------------------------------------------------------
-        # Clone
+        # Clone repository
         # ---------------------------------------------------------
 
-        progress(
-            phase="cloning",
-            progress=20,
-            message="Cloning repository...",
-        )
+        print("[1/5] Cloning repository...")
 
         repository_path = loader.load_from_github(repo_url)
 
+        print(f"      Clone path: {repository_path}")
+        print()
+
         # ---------------------------------------------------------
-        # Discover
+        # Discover files
         # ---------------------------------------------------------
 
-        progress(
-            phase="discovering",
-            progress=35,
-            message="Discovering source files...",
-        )
+        print("[2/5] Discovering files...")
 
         discovered_files = discovery.discover(repository_path)
 
@@ -107,15 +90,21 @@ def ingest_repository(
             if path.suffix.lower() in SUPPORTED_EXTENSIONS
         ]
 
+        print(
+            f"      Discovered files: {len(discovered_files)}"
+        )
+
+        print(
+            f"      Python files:     {len(python_files)}"
+        )
+
+        print()
+
         # ---------------------------------------------------------
         # Create repository
         # ---------------------------------------------------------
 
-        progress(
-            phase="creating",
-            progress=45,
-            message="Creating repository record...",
-        )
+        print("[3/5] Creating repository record...")
 
         repository = Repository(
             name=repository_name,
@@ -132,11 +121,16 @@ def ingest_repository(
 
         repository_id = repository.id
 
+        print(f"      Repository ID: {repository_id}")
+        print()
+
         # ---------------------------------------------------------
         # Process files
         # ---------------------------------------------------------
 
-        total_files = len(python_files)
+        print("[4/5] Processing Python files...")
+        print()
+
         processed_files = 0
         skipped_files = 0
         total_chunks = 0
@@ -147,20 +141,8 @@ def ingest_repository(
         ):
             relative_path = file_path.relative_to(repository_path)
 
-            if total_files:
-                file_progress = 50 + int(
-                    (index / total_files) * 45
-                )
-            else:
-                file_progress = 95
-
-            progress(
-                phase="processing",
-                progress=file_progress,
-                message=(
-                    f"Processing {index}/{total_files}: "
-                    f"{relative_path}"
-                ),
+            print(
+                f"[{index}/{len(python_files)}] {relative_path}"
             )
 
             try:
@@ -184,6 +166,7 @@ def ingest_repository(
                 )
 
                 if not chunks:
+                    print("      No chunks found.")
                     processed_files += 1
                     continue
 
@@ -195,20 +178,72 @@ def ingest_repository(
                 processed_files += 1
                 total_chunks += len(chunks)
 
-            except (SyntaxError, UnicodeDecodeError):
+                print(
+                    f"      Chunks: {len(chunks)}"
+                )
+
+            except (SyntaxError, UnicodeDecodeError) as exc:
                 db.rollback()
+
                 skipped_files += 1
 
+                print(
+                    f"      SKIPPED: {type(exc).__name__}: {exc}"
+                )
+
+                continue
+
+        # ---------------------------------------------------------
+        # Update repository metadata
+        # ---------------------------------------------------------
+
         repository.file_count = processed_files
+
         db.commit()
 
-        progress(
-            phase="finalizing",
-            progress=98,
-            message="Finalizing repository...",
+        # ---------------------------------------------------------
+        # Summary
+        # ---------------------------------------------------------
+
+        print()
+        print("[5/5] Ingestion complete.")
+        print()
+
+        print("=" * 70)
+        print("Ingestion Summary")
+        print("=" * 70)
+
+        print(
+            f"Repository ID:       {repository_id}"
         )
 
-        return repository
+        print(
+            f"Repository:          {repository_name}"
+        )
+
+        print(
+            f"Discovered files:    {len(discovered_files)}"
+        )
+
+        print(
+            f"Python files:        {len(python_files)}"
+        )
+
+        print(
+            f"Processed files:     {processed_files}"
+        )
+
+        print(
+            f"Skipped files:       {skipped_files}"
+        )
+
+        print(
+            f"Total chunks:        {total_chunks}"
+        )
+
+        print("=" * 70)
+
+        return repository_id
 
     except Exception:
         db.rollback()

@@ -1,34 +1,81 @@
 services:
+
   db:
     image: pgvector/pgvector:pg17
     container_name: codeatlas-db
+
     environment:
       POSTGRES_DB: codeatlas_db
       POSTGRES_USER: codeatlas
       POSTGRES_PASSWORD: codeatlas
+
     ports:
       - "5432:5432"
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U codeatlas -d codeatlas_db"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+
     container_name: codeatlas-app
+
     env_file:
       - .env
+
+    environment:
+      DATABASE_URL: postgresql+psycopg://codeatlas:codeatlas@db:5432/codeatlas_db
+
     ports:
       - "5000:5000"
+
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=3)"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
 
   frontend:
     build:
       context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:5000
+
     container_name: codeatlas-frontend
+
     ports:
       - "3000:3000"
+
     depends_on:
-      - app
+      app:
+        condition: service_healthy
+
 
 volumes:
   postgres_data:

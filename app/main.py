@@ -1,7 +1,14 @@
 import logging
+import threading
+import uuid
+from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse
 
 from flask import Flask, jsonify, request
+from flask_cors import CORS
+from sqlalchemy import text
 
+from app.database import SessionLocal
 from app.logging_config import setup_logging
 from app.ingestion.ingest import ingest_repository
 from app.ingestion.rag.pipeline import RAGPipeline
@@ -9,23 +16,40 @@ from app.ingestion.rag.conversation_manager import ConversationManager
 
 app = Flask(__name__)
 
+CORS(
+    app,
+    resources={
+        r"/*": {
+            "origins": [
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+            ]
+        }
+    },
+)
+
 setup_logging()
 logger = logging.getLogger(__name__)
 
 
+# -------------------------------------------------------------------
+# RAG pipeline
+# -------------------------------------------------------------------
+
 class LazyPipeline:
     """
-    Create the RAG pipeline only when it is actually needed.
-    This prevents model loading during Flask startup and keeps
-    pipeline.answer patchable in tests.
+    Loads the RAG pipeline only when the first chat request arrives.
     """
 
     def __init__(self):
         self._pipeline = None
+        self._lock = threading.Lock()
 
     def _get(self):
         if self._pipeline is None:
-            self._pipeline = RAGPipeline()
+            with self._lock:
+                if self._pipeline is None:
+                    self._pipeline = RAGPipeline()
 
         return self._pipeline
 
@@ -36,13 +60,158 @@ class LazyPipeline:
 pipeline = LazyPipeline()
 
 
+# -------------------------------------------------------------------
+# Background ingestion
+# -------------------------------------------------------------------
+
+executor = ThreadPoolExecutor(
+    max_workers=2,
+    thread_name_prefix="codeatlas-ingestion",
+)
+
+jobs = {}
+jobs_lock = threading.Lock()
+
+
+def update_job(job_id, **updates):
+    with jobs_lock:
+        if job_id in jobs:
+            jobs[job_id].update(updates)
+
+
+def get_job(job_id):
+    with jobs_lock:
+        job = jobs.get(job_id)
+
+        if job is None:
+            return None
+
+        return dict(job)
+
+
+def run_ingestion(job_id, repo_url):
+    try:
+        update_job(
+            job_id,
+            status="running",
+            phase="validating",
+            progress=5,
+            message="Validating repository URL...",
+        )
+
+        parsed = urlparse(repo_url)
+
+        if parsed.scheme not in {"http", "https"}:
+            raise ValueError("Repository URL must use http or https.")
+
+        if parsed.netloc.lower() not in {
+            "github.com",
+            "www.github.com",
+        }:
+            raise ValueError(
+                "Only public GitHub repositories are supported."
+            )
+
+        update_job(
+            job_id,
+            phase="ingesting",
+            progress=10,
+            message="Starting repository ingestion...",
+        )
+
+        def progress_callback(**updates):
+            update_job(job_id, **updates)
+
+        repository = ingest_repository(
+            repo_url,
+            progress_callback=progress_callback,
+        )
+
+        repository_id = (
+            repository.id
+            if hasattr(repository, "id")
+            else repository
+        )
+
+        repository_name = (
+            repository.name
+            if hasattr(repository, "name")
+            else None
+        )
+
+        file_count = (
+            repository.file_count
+            if hasattr(repository, "file_count")
+            else None
+        )
+
+        update_job(
+            job_id,
+            status="completed",
+            phase="ready",
+            progress=100,
+            message="Repository is ready.",
+            repository_id=repository_id,
+            name=repository_name,
+            file_count=file_count,
+            error=None,
+        )
+
+        logger.info(
+            "Repository ingestion completed: job_id=%s repository_id=%s",
+            job_id,
+            repository_id,
+        )
+
+    except Exception as exc:
+        logger.exception(
+            "Repository ingestion failed: job_id=%s",
+            job_id,
+        )
+
+        update_job(
+            job_id,
+            status="failed",
+            phase="failed",
+            progress=0,
+            message="Repository ingestion failed.",
+            error=str(exc),
+        )
+
+
+# -------------------------------------------------------------------
+# Health
+# -------------------------------------------------------------------
+
 @app.get("/health")
 def health():
-    return jsonify({
-        "service": "CodeAtlas",
-        "status": "ok",
-    })
+    db = SessionLocal()
 
+    try:
+        db.execute(text("SELECT 1"))
+
+        return jsonify({
+            "service": "CodeAtlas",
+            "status": "ok",
+            "database": "ok",
+        })
+
+    except Exception:
+        logger.exception("Health check failed")
+
+        return jsonify({
+            "service": "CodeAtlas",
+            "status": "degraded",
+            "database": "unavailable",
+        }), 503
+
+    finally:
+        db.close()
+
+
+# -------------------------------------------------------------------
+# Repository ingestion
+# -------------------------------------------------------------------
 
 @app.post("/repositories")
 def create_repository():
@@ -50,40 +219,61 @@ def create_repository():
 
     repo_url = data.get("repo_url")
 
-    if not repo_url:
+    if not repo_url or not isinstance(repo_url, str):
         return jsonify({
             "error": "repo_url is required"
         }), 400
 
-    logger.info("Starting repository ingestion: %s", repo_url)
+    repo_url = repo_url.strip()
+
+    job_id = str(uuid.uuid4())
+
+    with jobs_lock:
+        jobs[job_id] = {
+            "job_id": job_id,
+            "status": "queued",
+            "phase": "queued",
+            "progress": 0,
+            "message": "Repository ingestion queued.",
+            "repository_id": None,
+            "name": None,
+            "file_count": None,
+            "error": None,
+        }
+
+    executor.submit(
+        run_ingestion,
+        job_id,
+        repo_url,
+    )
+
+    logger.info(
+        "Repository ingestion queued: job_id=%s url=%s",
+        job_id,
+        repo_url,
+    )
+
+    return jsonify({
+        "job_id": job_id,
+        "status": "queued",
+    }), 202
 
 
-    try:
-        repository = ingest_repository(repo_url)
+@app.get("/repositories/status/<job_id>")
+def repository_status(job_id):
+    job = get_job(job_id)
 
-        # Normal application case:
-        # ingest_repository returns a Repository object.
-        if hasattr(repository, "id"):
-            return jsonify({
-                "repository_id": repository.id,
-                "status": "ingested",
-                "name": repository.name,
-                "file_count": repository.file_count,
-            }), 201
-
-        # Test/mock or simplified return case:
-        # ingest_repository returns the repository ID directly.
+    if job is None:
         return jsonify({
-            "repository_id": repository,
-            "status": "ingested",
-        }), 201
+            "error": "Ingestion job not found."
+        }), 404
 
-    except Exception:
-        logger.exception("Repository ingestion failed")
-        return jsonify({
-            "error": "Failed to ingest repository."
-        }), 500
+    return jsonify(job), 200
 
+
+# -------------------------------------------------------------------
+# Conversations
+# -------------------------------------------------------------------
 
 @app.post("/conversations")
 def create_conversation():
@@ -113,6 +303,7 @@ def create_conversation():
 
     except Exception:
         logger.exception("Conversation creation failed")
+
         return jsonify({
             "error": "Failed to create conversation."
         }), 500
@@ -120,6 +311,10 @@ def create_conversation():
     finally:
         manager.close()
 
+
+# -------------------------------------------------------------------
+# Chat
+# -------------------------------------------------------------------
 
 @app.post("/chat")
 def chat():
@@ -152,25 +347,24 @@ def chat():
             conversation_id=conversation_id,
         )
 
-        logger.info(
-            "Chat request completed: repository_id=%s conversation_id=%s",
-            repository_id,
-            conversation_id,
-        )
-
         return jsonify({
             "answer": answer,
             "repository_id": repository_id,
         }), 200
 
     except ValueError as exc:
-        logger.warning("Invalid chat request: %s", exc)
+        logger.warning(
+            "Invalid chat request: %s",
+            exc,
+        )
+
         return jsonify({
             "error": str(exc)
         }), 400
 
     except Exception:
         logger.exception("Chat request failed")
+
         return jsonify({
             "error": "Failed to process chat request."
         }), 500
