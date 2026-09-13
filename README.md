@@ -833,3 +833,8 @@ AI Engineer · Backend Developer · RAG & LLM Systems
 <p align="center">
   Built to understand codebases — not just generate code.
 </p>
+
+## UI Preview
+
+![CodeAtlas UI Preview](./UI%20CodeAtlas.png)
+![CodeAtlas UI Preview](./UI%20CodeAtlas.png)
