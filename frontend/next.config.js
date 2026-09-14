@@ -5,7 +5,7 @@ const nextConfig = {
     return [
       {
         source: "/api/codeatlas/:path*",
-        destination: "http://app:5000/:path*",
+        destination: "http://localhost:5000/:path*",
       },
     ]
   },

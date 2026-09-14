@@ -7,6 +7,10 @@ from app.ingestion.retrievalreranking.query_router import QueryRouter
 from app.ingestion.rag.context_builder import ContextBuilder
 from app.ingestion.rag.generator import RAGGenerator
 from app.ingestion.rag.conversation_manager import ConversationManager
+from app.ingestion.rag.security import (
+    contains_sensitive_request,
+    safe_security_response,
+)
 
 
 class RAGPipeline:
@@ -159,6 +163,9 @@ class RAGPipeline:
     ) -> str:
 
         conversation_manager = None
+
+        if contains_sensitive_request(question):
+            return safe_security_response()
 
         try:
             history = ""

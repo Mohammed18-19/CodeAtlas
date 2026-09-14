@@ -1,6 +1,8 @@
 import ast
 from pathlib import Path
 
+from app.ingestion.rag.security import redact_secrets
+
 
 class CodeChunker:
     def chunk_file(
@@ -39,6 +41,7 @@ class CodeChunker:
         ) -> None:
 
             source = source.strip()
+            source = redact_secrets(source)
 
             if not source:
                 return

@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from google import genai
 
 from app.ingestion.rag.prompts import RAGPrompt
+from app.ingestion.rag.security import redact_secrets
 
 
 load_dotenv()
@@ -34,4 +35,4 @@ class RAGGenerator:
             contents=prompt,
         )
 
-        return response.text
+        return redact_secrets(response.text or "")
