@@ -5,7 +5,8 @@ const nextConfig = {
     return [
       {
         source: "/api/codeatlas/:path*",
-        destination: "http://localhost:5000/:path*",
+        destination:
+          process.env.CODEATLAS_BACKEND_URL || "http://localhost:5000/:path*",
       },
     ]
   },

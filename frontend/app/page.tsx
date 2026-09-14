@@ -99,33 +99,6 @@ export default function HomePage() {
     }
   }, [queryRepositoryId])
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    if (queryRepositoryId || queryConversationId) return
-
-    const stored = localStorage.getItem('codeatlas:last-session')
-    if (!stored) return
-
-    try {
-      const session = JSON.parse(stored)
-
-      if (session.repositoryId) {
-        setRepositoryId(Number(session.repositoryId))
-
-        if (session.conversationId) {
-          router.replace(
-            `/?view=chat&repository=${session.repositoryId}&conversation=${session.conversationId}`
-          )
-        } else {
-          router.replace(`/?view=chat&repository=${session.repositoryId}`)
-        }
-      }
-    } catch {
-      localStorage.removeItem('codeatlas:last-session')
-    }
-  }, [queryRepositoryId, queryConversationId, router])
-
   async function loadRepositories() {
     setDataLoading(true)
     setError('')

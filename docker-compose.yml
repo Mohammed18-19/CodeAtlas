@@ -61,11 +61,14 @@ services:
 
 
   frontend:
+    environment:
+      CODEATLAS_BACKEND_URL: http://app:5000/:path*
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: http://localhost:5000
+        CODEATLAS_BACKEND_URL: http://app:5000/:path*
 
     container_name: codeatlas-frontend
 
