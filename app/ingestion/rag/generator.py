@@ -4,7 +4,11 @@ from dotenv import load_dotenv
 from google import genai
 
 from app.ingestion.rag.prompts import RAGPrompt
-from app.ingestion.rag.security import redact_secrets
+from app.ingestion.rag.security import (
+    contains_sensitive_output,
+    redact_secrets,
+    safe_security_response,
+)
 
 
 load_dotenv()
@@ -35,4 +39,12 @@ class RAGGenerator:
             contents=prompt,
         )
 
-        return redact_secrets(response.text or "")
+        generated_text = redact_secrets(response.text or "")
+
+        if contains_sensitive_output(generated_text):
+            return safe_security_response()
+
+        if "[REDACTED]" in generated_text:
+            return safe_security_response()
+
+        return generated_text

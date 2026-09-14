@@ -2,6 +2,7 @@ from app.ingestion.rag.security import (
     REDACTED,
     contains_sensitive_request,
     redact_secrets,
+    contains_sensitive_output,
 )
 
 
@@ -46,3 +47,51 @@ def test_allows_normal_code_questions():
     assert not contains_sensitive_request(
         "Where is the main application class?"
     )
+
+
+def test_redaction_does_not_preserve_secret_assignment_name():
+    text = 'API_KEY = "super-secret-value"'
+    result = redact_secrets(text)
+
+    assert "super-secret-value" not in result
+    assert "API_KEY" not in result
+    assert result == "[REDACTED]"
+
+
+def test_sensitive_output_is_detected():
+    assert contains_sensitive_output(
+        'api_key = "super-secret-value"'
+    )
+
+
+def test_private_key_output_is_detected():
+    assert contains_sensitive_output(
+        "-----BEGIN PRIVATE KEY-----\nsecret\n-----END PRIVATE KEY-----"
+    )
+
+
+def test_safe_output_is_allowed():
+    assert not contains_sensitive_output(
+        "The application uses a standard authentication flow."
+    )
+
+
+def test_redacted_context_does_not_expose_location():
+    from app.ingestion.rag.context_builder import ContextBuilder
+
+    class FakeFile:
+        path = "src/config.py"
+
+    class FakeChunk:
+        file = FakeFile()
+        start_line = 10
+        end_line = 20
+        content = "[REDACTED]"
+
+    result = ContextBuilder().build(
+        [{"chunk": FakeChunk()}]
+    )
+
+    assert "src/config.py" not in result
+    assert "10-20" not in result
+    assert "Sensitive repository content was removed for security." in result
