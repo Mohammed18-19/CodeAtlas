@@ -1,10 +1,34 @@
 from app.database import SessionLocal
-from app.models import Conversation, Message
+from app.models import Conversation, Message, Repository
 
 
 class ConversationManager:
     def __init__(self):
         self.db = SessionLocal()
+
+    def list_repositories(self) -> list:
+        return (
+            self.db.query(Repository)
+            .order_by(Repository.id.desc())
+            .all()
+        )
+
+    def list_conversations(self) -> list:
+        return (
+            self.db.query(Conversation)
+            .order_by(Conversation.created_at.desc(), Conversation.id.desc())
+            .all()
+        )
+
+    def get_conversation_with_messages(
+        self,
+        conversation_id: int,
+    ) -> Conversation | None:
+        return (
+            self.db.query(Conversation)
+            .filter(Conversation.id == conversation_id)
+            .first()
+        )
 
     def create_conversation(
         self,

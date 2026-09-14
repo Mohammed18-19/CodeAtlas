@@ -257,6 +257,117 @@ def repository_status(job_id):
     return jsonify(job), 200
 
 
+@app.get("/repositories")
+def list_repositories():
+    manager = ConversationManager()
+
+    try:
+        repositories = manager.list_repositories()
+
+        return jsonify({
+            "repositories": [
+                {
+                    "id": repository.id,
+                    "name": repository.name,
+                    "file_count": repository.file_count,
+                    "metadata": repository.repo_metadata,
+                }
+                for repository in repositories
+            ]
+        }), 200
+
+    except Exception:
+        logger.exception("Repository listing failed")
+        return jsonify({
+            "error": "Failed to load repositories."
+        }), 500
+
+    finally:
+        manager.close()
+
+
+@app.get("/conversations")
+def list_conversations():
+    manager = ConversationManager()
+
+    try:
+        conversations = manager.list_conversations()
+
+        return jsonify({
+            "conversations": [
+                {
+                    "id": conversation.id,
+                    "repository_id": conversation.repository_id,
+                    "repository_name": (
+                        conversation.repository.name
+                        if conversation.repository
+                        else None
+                    ),
+                    "title": conversation.title,
+                    "created_at": conversation.created_at.isoformat(),
+                }
+                for conversation in conversations
+            ]
+        }), 200
+
+    except Exception:
+        logger.exception("Conversation listing failed")
+        return jsonify({
+            "error": "Failed to load conversations."
+        }), 500
+
+    finally:
+        manager.close()
+
+
+@app.get("/conversations/<int:conversation_id>")
+def get_conversation(conversation_id):
+    manager = ConversationManager()
+
+    try:
+        conversation = manager.get_conversation_with_messages(
+            conversation_id
+        )
+
+        if conversation is None:
+            return jsonify({
+                "error": "Conversation not found."
+            }), 404
+
+        return jsonify({
+            "id": conversation.id,
+            "repository_id": conversation.repository_id,
+            "repository_name": (
+                conversation.repository.name
+                if conversation.repository
+                else None
+            ),
+            "title": conversation.title,
+            "created_at": conversation.created_at.isoformat(),
+            "messages": [
+                {
+                    "id": message.id,
+                    "role": message.role,
+                    "content": message.content,
+                    "created_at": message.created_at.isoformat(),
+                }
+                for message in conversation.messages
+            ],
+        }), 200
+
+    except Exception:
+        logger.exception(
+            "Conversation retrieval failed: id=%s",
+            conversation_id,
+        )
+        return jsonify({
+            "error": "Failed to load conversation."
+        }), 500
+
+    finally:
+        manager.close()
+
+
 # -------------------------------------------------------------------
 # Conversations
 # -------------------------------------------------------------------
