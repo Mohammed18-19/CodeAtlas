@@ -12,7 +12,54 @@ from app.models import Repository, File
 
 
 SUPPORTED_EXTENSIONS = {
+    # Python
     ".py",
+
+    # JavaScript / TypeScript
+    ".js",
+    ".jsx",
+    ".ts",
+    ".tsx",
+
+    # Rust
+    ".rs",
+
+    # Java / JVM
+    ".java",
+    ".kt",
+    ".kts",
+
+    # C / C++
+    ".c",
+    ".h",
+    ".cpp",
+    ".hpp",
+    ".cc",
+    ".hh",
+
+    # Go
+    ".go",
+
+    # Ruby
+    ".rb",
+
+    # PHP
+    ".php",
+
+    # Swift
+    ".swift",
+
+    # Shell
+    ".sh",
+    ".bash",
+
+    # Configuration / markup commonly useful for repository understanding
+    ".json",
+    ".yaml",
+    ".yml",
+    ".toml",
+    ".xml",
+    ".md",
 }
 
 
@@ -105,7 +152,7 @@ def ingest_repository(
 
         discovered_files = discovery.discover(repository_path)
 
-        python_files = [
+        source_files = [
             path
             for path in discovered_files
             if path.suffix.lower() in SUPPORTED_EXTENSIONS
@@ -140,13 +187,13 @@ def ingest_repository(
         # Process files
         # ---------------------------------------------------------
 
-        total_files = len(python_files)
+        total_files = len(source_files)
         processed_files = 0
         skipped_files = 0
         total_chunks = 0
 
         for index, file_path in enumerate(
-            python_files,
+            source_files,
             start=1,
         ):
             relative_path = file_path.relative_to(repository_path)

@@ -5,6 +5,35 @@ from app.ingestion.rag.security import redact_secrets
 
 
 class CodeChunker:
+    GENERIC_EXTENSIONS = {
+        ".rs",
+        ".js",
+        ".jsx",
+        ".ts",
+        ".tsx",
+        ".java",
+        ".kt",
+        ".kts",
+        ".c",
+        ".h",
+        ".cpp",
+        ".hpp",
+        ".cc",
+        ".hh",
+        ".go",
+        ".rb",
+        ".php",
+        ".swift",
+        ".sh",
+        ".bash",
+        ".json",
+        ".yaml",
+        ".yml",
+        ".toml",
+        ".xml",
+        ".md",
+    }
+
     def chunk_file(
         self,
         file_path: Path,
@@ -18,6 +47,41 @@ class CodeChunker:
         if not content.strip():
             return []
 
+        source_path = (
+            display_path
+            if display_path is not None
+            else file_path.as_posix()
+        )
+
+        # ---------------------------------------------------------
+        # Python: use AST-based chunking
+        # ---------------------------------------------------------
+
+        if file_path.suffix.lower() == ".py":
+            return self._chunk_python(
+                content=content,
+                source_path=source_path,
+            )
+
+        # ---------------------------------------------------------
+        # Other supported languages: generic line-based chunking
+        # ---------------------------------------------------------
+
+        if file_path.suffix.lower() in self.GENERIC_EXTENSIONS:
+            return self._chunk_generic(
+                content=content,
+                source_path=source_path,
+            )
+
+        return []
+
+
+    def _chunk_python(
+        self,
+        content: str,
+        source_path: str,
+    ) -> list[dict]:
+
         try:
             tree = ast.parse(content)
         except SyntaxError:
@@ -25,12 +89,6 @@ class CodeChunker:
 
         lines = content.splitlines()
         chunks = []
-
-        source_path = (
-            display_path
-            if display_path is not None
-            else file_path.as_posix()
-        )
 
         def add_chunk(
             source: str,
@@ -244,5 +302,66 @@ class CodeChunker:
                     symbol=symbol,
                     symbol_type=symbol_type,
                 )
+
+        return chunks
+
+
+    def _chunk_generic(
+        self,
+        content: str,
+        source_path: str,
+        chunk_size: int = 80,
+    ) -> list[dict]:
+
+        lines = content.splitlines()
+        chunks = []
+
+        for start in range(
+            0,
+            len(lines),
+            chunk_size,
+        ):
+
+            end = min(
+                start + chunk_size,
+                len(lines),
+            )
+
+            source = "\n".join(
+                lines[start:end]
+            ).strip()
+
+            if not source:
+                continue
+
+            source = redact_secrets(source)
+
+            if not source:
+                continue
+
+            start_line = start + 1
+            end_line = end
+
+            symbol = (
+                f"{Path(source_path).name}:"
+                f"{start_line}-{end_line}"
+            )
+
+            enriched_content = (
+                f"File: {source_path}\n"
+                f"Symbol: {symbol}\n"
+                f"Symbol Type: code_block\n\n"
+                f"{source}"
+            )
+
+            chunks.append(
+                {
+                    "content": enriched_content,
+                    "start_line": start_line,
+                    "end_line": end_line,
+                    "symbol": symbol,
+                    "symbol_type": "code_block",
+                }
+            )
 
         return chunks
