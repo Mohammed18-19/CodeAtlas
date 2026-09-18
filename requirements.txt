@@ -4,7 +4,7 @@ pgvector
 python-dotenv
 torch==2.8.0+cpu
 sentence-transformers
-google-genai
+openai
 Flask
 Flask-Cors
 gunicorn
