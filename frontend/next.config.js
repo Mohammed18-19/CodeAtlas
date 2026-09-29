@@ -6,7 +6,7 @@ const nextConfig = {
       {
         source: "/api/codeatlas/:path*",
         destination:
-          process.env.CODEATLAS_BACKEND_URL || "http://localhost:5000/:path*",
+          `${process.env.CODEATLAS_BACKEND_URL || "http://localhost:5000"}/:path*`,
       },
     ]
   },
