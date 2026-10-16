@@ -22,6 +22,7 @@ class Evaluator:
         candidates = self.hybrid_search.search(
             query=question,
             top_k=10,
+            repository_id=self.repository_id,
         )
 
         return self.reranker.rerank(
@@ -78,6 +79,7 @@ class Evaluator:
         try:
             answer = self.pipeline.answer(
                 question=question,
+                repository_id=self.repository_id,
             )
 
             generation_ok = True
