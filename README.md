@@ -714,7 +714,6 @@ Current limitations include:
 * Retrieval evaluation is based on a relatively small labeled dataset.
 * The API does not currently include authentication or authorization.
 * The system is not designed for distributed production-scale workloads.
-* There is no dedicated frontend application.
 * Repository ingestion is currently designed around the supported ingestion workflow rather than continuous synchronization.
 
 These are deliberate boundaries rather than hidden assumptions.
